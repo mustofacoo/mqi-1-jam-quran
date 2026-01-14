@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QUALITY TIME BARENG ALQUR'AN</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0F766E">
+    
+    <link rel="apple-touch-icon" href="192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="512.png">
+
+    <link rel="stylesheet" href="tampilan.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+    <div class="container" x-data="tilawahApp()">
+        <div 
+            @dblclick="copyMonthlyReport()" 
+            style="position: fixed; top: 0; left: 0; width: 80px; height: 80px; z-index: 9999; cursor: pointer;"
+            title="Double tap for report">
+        </div>
+        
+        <div x-show="!currentUser && !showAdminLogin" class="login-card card">
+            <div style="margin-bottom: 24px;">
+                <div style="color: var(--primary); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;"> </div>
+                <h3 style="font-size: 18px; font-weight: 600; margin-top: 4px;" x-text="currentHijriDate"></h3>
+                <div style="color: var(--text-muted); font-size: 13px;" x-text="currentGregorianDate"></div>
+                <p style="color: rgb(18, 84, 75);" class="subtitle">--------------------------------------------------</p>
+            </div>
+
+            <h1>BISMILLAAH...</h1>
+            <h1>QUALITY TIME BERSAMA AL-QUR'AN</h1>
+            <p class="subtitle">Nikmati, Resapi, Tanpa Distraksi</p>
+            
+
+            <div class="input-group">
+                <label></label>
+                <input type="text" x-model="loginUsername" @keyup.enter="login()" placeholder="Masukkan username">
+                <p x-show="loginError" class="error-msg" x-text="loginError"></p>
+            </div>
+            
+            <button class="btn btn-primary" @click="login()">Masuk</button>
+        </div>
+
+        <div x-show="showAdminLogin && !currentUser" class="login-card card">
+            <h1>Admin Panel</h1>
+            <p class="subtitle">Akses khusus administrator</p>
+            
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" x-model="adminPassword" @keyup.enter="adminLogin()" placeholder="••••••••">
+                <p x-show="loginError" class="error-msg" x-text="loginError"></p>
+            </div>
+            
+            <button class="btn btn-primary" @click="adminLogin()">Login Admin</button>
+            <button class="btn btn-secondary" @click="showAdminLogin = false">Kembali</button>
+        </div>
+
+        <div x-show="currentUser && !isAdmin" class="card">
+            <div class="header">
+                <div class="user-info">
+                    <h2 x-text="currentUserFullName"></h2>
+                    <p class="subtitle">Semoga istiqomah, ya :)</p>
+                </div>
+               <!-- <button class="btn btn-danger" style="width: auto;" @click="logout()">Keluar</button>-->
+            </div>
+
+         <!-- <div class="date-badge">
+                <span x-text="currentHijriDate"></span>
+            </div> -->
+
+            <div class="motivation-box">
+                <p class="motivation-text" x-text="currentMotivation"></p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label>Periode</label>
+                <input type="month" x-model="selectedMonth" style="max-width: 200px;">
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Selesai</div>
+                    <div class="stat-value" x-text="calculateStats().completed"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Presentase</div>
+                    <div class="stat-value" x-text="calculateStats().percentage + '%'"></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Hari</div>
+                    <div class="stat-value" x-text="calculateStats().total"></div>
+                </div>
+            </div>
+
+            <div class="calendar-grid">
+                <template x-for="day in getDaysInMonth()" :key="day">
+                    <div 
+                        class="day-cell"
+                        :class="{
+                            'checked': isChecked(day),
+                            'disabled': day > getCurrentDay()
+                        }"
+                        @click="toggleDay(day)"
+                        x-text="day"
+                    ></div>
+                </template>
+            </div>
+        </div>
+
+        <div x-show="currentUser && isAdmin" class="card">
+            <div class="header">
+                <div class="user-info">
+                    <h2>Dashboard Admin</h2>
+                    <p class="subtitle">Kelola peserta & laporan</p>
+                </div>
+                <button class="btn btn-danger" style="width: auto;" @click="logout()">Keluar</button>
+            </div>
+
+            <div class="motivation-box">
+                <p class="motivation-text" x-text="currentMotivation"></p>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 24px;">
+                <h2 style="font-size: 16px; margin-bottom: 12px;">Tambah Peserta Baru</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
+                    <div>
+                        <label>Username</label>
+                        <input type="text" x-model="newParticipant" placeholder="Login ID">
+                    </div>
+                    <div>
+                        <label>Nama Lengkap</label>
+                        <input type="text" x-model="newFullName" placeholder="Nama Tampilan">
+                    </div>
+                    <button class="btn btn-primary" style="height: 42px;" @click="addParticipant()">Tambah</button>
+                </div>
+                <p x-show="adminMessage" :class="adminMessage.includes('berhasil') ? 'subtitle' : 'error-msg'" style="margin-top: 10px;" x-text="adminMessage"></p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <div style="flex: 1;">
+                     <input type="month" x-model="selectedMonth" style="max-width: 200px;">
+                </div>
+                <button class="btn btn-secondary" style="width: auto; margin:0;" @click="copyMonthlyReport()">
+                    📋 Copy Laporan
+                </button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Nama Lengkap</th>
+                            <th>Username</th>
+                            <th style="width: 25%;">Progress</th>
+                            <th class="text-center">Statistik</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="participant in getSortedParticipants()" :key="participant">
+                            <tr>
+                                <td data-label="Nama Lengkap">
+                                    <span style="font-weight: 500;" x-text="getFullName(participant)"></span>
+                                </td>
+                                <td data-label="Username" style="color: var(--text-muted);" x-text="participant"></td>
+                                <td data-label="Progress">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" :style="`width: ${getParticipantStats(participant).percentage}%`"></div>
+                                        </div>
+                                        <span style="font-size: 12px;" x-text="getParticipantStats(participant).percentage + '%'"></span>
+                                    </div>
+                                </td>
+                                <td data-label="Hari Berhasil" class="text-center" x-text="getParticipantStats(participant).completed + ' / ' + getParticipantStats(participant).total + ' Hari'"></td>
+                                <td data-label="Aksi" class="text-center">
+                                    <button 
+                                        class="btn btn-danger" 
+                                        style="width: auto; padding: 6px 10px; font-size: 12px;"
+                                        @click="deleteParticipant(participant)"
+                                    >Hapus</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button class="secret-btn" @click="showAdminLogin = true"></button>
+    </div>
+    
+    <script src="supabase.js"></script>
+    <script src="aplikasi.js"></script>
+</body>
+</html>
