@@ -100,6 +100,14 @@ function tilawahApp() {
 
         async init() {
             await this.loadData();
+            const savedUser = localStorage.getItem('tilawah_user');
+            const savedFullName = localStorage.getItem('tilawah_fullname');
+            
+            if (savedUser && this.participants.includes(savedUser)) {
+                this.currentUser = savedUser;
+                this.currentUserFullName = savedFullName || savedUser;
+                this.isAdmin = false;
+            }
             this.setupYearFilter();
             this.updateSelectedMonth();
             this.setRandomMotivation();
@@ -170,11 +178,11 @@ function tilawahApp() {
                     full_name: p.full_name.trim()
                 }));
                 this.participants = this.participantsData.map(p => p.username);
-
                 const { data: trackingData, error: trackingError } = await supabaseClient
                     .from('tracking_log')
-                    .select('*');
-                    
+                    .select('*')
+                    .order('id', { ascending: false })  // ambil yang terbaru dulu
+                    .limit(100000);                        // naikkan limit
                 if (trackingError) throw trackingError;
 
                 trackingData.forEach(log => {
@@ -226,6 +234,9 @@ login() {
         this.currentUser = normalizedUsername;
         this.currentUserFullName = participant ? participant.full_name : normalizedUsername;
         this.isAdmin = false;
+
+        localStorage.setItem('tilawah_user', normalizedUsername);
+        localStorage.setItem('tilawah_fullname', this.currentUserFullName);
         this.setRandomMotivation();
     } else {
         this.loginError = 'Username tidak terdaftar';
@@ -246,6 +257,8 @@ login() {
         },
 
         logout() {
+            localStorage.removeItem('tilawah_user');
+            localStorage.removeItem('tilawah_fullname');
             this.currentUser = null;
             this.currentUserFullName = '';
             this.isAdmin = false;
